@@ -59,6 +59,73 @@ JavaScript actions don't include the environment in the code. You'll have to spe
 
 Composite actions allow you to combine multiple workflow steps within one action. For example, you can use this feature to bundle together multiple run commands into an action, and then have a workflow that executes the bundled commands as a single step using that action.
 
+Sample Workflow Using a Composite Action
+Here's a complete example showing how to create and use a composite action:
+
+1. First, create the composite action file
+Create a file at .github/actions/setup-environment/action.yml:
+
+yaml
+Copy
+Download
+name: 'Setup Python Environment'
+description: 'Sets up Python, installs dependencies, and caches them'
+inputs:
+  python-version:
+    description: 'Version of Python to use'
+    required: true
+    default: '3.10'
+  dependencies-file:
+    description: 'Path to requirements file'
+    required: true
+    default: 'requirements.txt'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles(inputs.dependencies-file) }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: pip install -r ${{ inputs.dependencies-file }}
+      shell: bash
+2. Then, create a workflow that uses this composite action
+Create a file at .github/workflows/test.yml:
+
+yaml
+Copy
+Download
+name: CI Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-environment
+        with:
+          python-version: '3.10'
+          dependencies-file: 'requirements.txt'
+          
+      - name: Run tests
+        run: pytest
+        shell: bash
+
 The anatomy of a GitHub action
 Here's an example of an action that performs a git checkout of a repository. This action, actions/checkout@v1, is part of a step in a workflow. This step also builds the Node.js code that was checked out. We'll talk about workflows, jobs, and steps in the next section.
 
